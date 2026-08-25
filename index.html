@@ -1,0 +1,171 @@
+<!doctype html>
+<html><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Refresh Opportunity Scoring for Search Content</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,sans-serif;max-width:950px;margin:40px auto;padding:0 20px;line-height:1.65;color:#1f2937}
+h1,h2{line-height:1.2} h1{font-size:42px} h2{margin-top:42px}
+.card{padding:20px;border:1px solid #ddd;border-radius:14px;margin:20px 0}
+img{max-width:100%;border-radius:10px} table{border-collapse:collapse;width:100%}th,td{padding:10px;border-bottom:1px solid #ddd;text-align:left}
+.small{color:#666}
+</style></head><body>
+<h1>Refresh Opportunity Scoring for Search Content</h1>
+<p class="small">Google Search Ranking &amp; Discoverability — FlyRank ML Internship Capstone</p>
+<div class="card"><strong>Research question:</strong> Can a leakage-aware ML workflow improve prioritization of content items for search-performance review compared with a transparent baseline?</div>
+# Refresh Opportunity Scoring for Search Content
+
+## Abstract
+
+This capstone asks whether a transparent machine-learning workflow can rank content items that deserve search-performance review. The approach uses the FlyRank anonymized starter dataset and a refresh-opportunity framing, with a leakage-aware feature contract, an interpretable baseline, and a random-forest ranking model. The public starter documentation reports a baseline Precision@50 of 0.240 and a random-forest Precision@50 of about 0.740 on its reference stack, indicating a roughly three-fold lift on that evaluation. The result is treated as decision support for prioritization rather than proof of Google's ranking algorithm or a causal refresh effect. The output is a ranked review queue with reason codes that can guide human content decisions.
+
+## 1. Introduction / Problem Statement
+
+Content teams cannot review every page with equal attention. The practical decision is therefore not simply “which model is most accurate?” but “which pages should a human review first, and why?”
+
+This project studies a refresh-opportunity scoring workflow: use observable content and search-performance signals to prioritize pages for review. The intended user is a content/SEO operator who needs a repeatable queue rather than an opaque prediction.
+
+The research question is:
+
+> Can a leakage-aware machine-learning model improve the prioritization of content items for search-performance review compared with a transparent baseline?
+
+The project deliberately avoids claims that the model proves Google's algorithm or causes ranking changes.
+
+## 2. Data
+
+The public starter release contains 30,000 pseudonymized content items and 44 columns. The documented fields include search demand, impressions, clicks, sessions, engagement, content age/freshness, position tiers, trend fields, and derived opportunity flags.
+
+Public-safety rules remove client names, domains, URLs, page titles, keywords/raw queries, credentials, and other private identifiers. Pseudonymous IDs are used for grouping/joining only and are not model features.
+
+The starter dataset is a small anonymized slice. The full internship warehouse is a separate gated release and must not be copied into a public repository.
+
+For a production-grade capstone run, the exact release, feature window, label window, exclusions, and warehouse join logic should be recorded in the executed capstone notebook. This paper uses the public starter pipeline as the reproducible reference artifact.
+
+## 3. Methodology
+
+### Task
+
+The task is framed as ranking: assign each eligible content item an opportunity score, sort descending, and prioritize the top of the queue.
+
+### Baseline
+
+The baseline is a transparent hand-rule score supplied by the FlyRank reference pipeline. It is intentionally simple and auditable.
+
+### Model
+
+The reference pipeline compares three model families and exports model predictions and evaluation results. The documented random-forest result is used here as the primary reference model because it provides a strong non-linear baseline while remaining straightforward to inspect with feature importance and reason codes.
+
+### Features
+
+Candidate signals include search demand, impressions/clicks/sessions, position and impression tiers, content age/freshness, word/character count tiers, engagement-related measures, and other safe fields defined by the project's data dictionary.
+
+Fields that directly encode the future target or derived post-outcome status must be excluded.
+
+### Leakage Control
+
+Leakage is treated as a first-class risk. A feature is invalid if it contains information that would only be known after the decision point. Trend or outcome-derived fields are particularly risky and must be excluded when they overlap with the label window.
+
+The starter course explicitly demonstrates that a leaky feature can inflate evaluation, so the capstone keeps the label contract separate from the feature window.
+
+### Validation
+
+The evaluation compares baseline and model on the same held-out scope using Precision@k, with k=50 emphasized because the operational use case is a small review queue.
+
+The public starter guide reports that the baseline result is reproducible at Precision@50 = 0.240 and the random-forest result is approximately 0.740 on the shipped stack. Library-version differences can move the random-forest value, so the stable interpretation is the approximate three-fold lift rather than a claim about the third decimal place.
+
+## 4. Results
+
+### Reference evaluation
+
+| Method | Precision@50 |
+|---|---:|
+| Transparent baseline | 0.240 |
+| Random forest | ~0.740 |
+
+The reference result corresponds to approximately a 3.1× lift in Precision@50 over the baseline.
+
+![Model comparison](assets/model_comparison.png)
+
+This should be interpreted as evidence that the reference feature/model pipeline can prioritize a more concentrated set of positive cases than the simple baseline on the documented evaluation scope. It is not evidence that the model causes traffic or rankings to improve.
+
+## 5. Limitations & Honest Framing
+
+This work has several important limitations.
+
+1. The starter dataset is anonymized and does not expose domains, URLs, queries, or client context.
+2. The starter sample is not the same thing as a causal experiment on content refreshes.
+3. Search performance is affected by many factors not represented in the dataset.
+4. A ranking model can prioritize review candidates but cannot guarantee that a refresh will improve Google visibility.
+5. Precision@50 measures concentration of the evaluation label in the top-ranked queue; it is not a business-impact metric.
+6. The random-forest result is library-version sensitive, so approximate performance is more defensible than a precise third-decimal claim.
+7. The final recommendations require human review and should be treated as decision support.
+
+Therefore, the correct language is **observed**, **directional**, and **decision-support** rather than causal or algorithmic.
+
+## 6. Ranked Recommendations / Action Playbook
+
+The model should be used as a prioritization engine.
+
+### Priority 1 — Review
+
+Send the highest-scoring pages to a human reviewer first. Check whether the observed signals indicate a genuine content or search-performance issue.
+
+### Priority 2 — Refresh
+
+Where the review confirms stale, weak, or mismatched content, consider a targeted refresh. Preserve what is already working and change only the elements supported by evidence.
+
+### Priority 3 — Protect
+
+Do not automatically edit high-performing pages. Pages with healthy signals should be monitored and protected from unnecessary changes.
+
+### Priority 4 — Monitor
+
+Borderline or low-confidence cases should remain in a monitoring queue rather than receiving immediate intervention.
+
+### Reason-code design
+
+Each recommendation should expose human-readable reasons such as:
+
+- declining recent performance
+- weak click capture relative to visibility
+- stale content/freshness signal
+- low engagement signal
+- strong performance — protect
+- insufficient evidence — monitor
+
+These are reasons for review, not claims about ranking causality.
+
+## 7. Reproducibility
+
+The project follows the public FlyRank starter structure:
+
+- `work/` — learner notebooks and capstone work
+- `paper/` — deployed research paper
+- `submission/paper_url.txt` — exact paper URL
+- `paper/assets/` — visual assets
+
+The public starter repository documents a five-stage reference pipeline:
+
+`prepare features → baseline → train models → evaluate/export → report`
+
+The public starter dataset is available through the FlyRank internship dataset release.
+
+Repository:
+https://github.com/sudais2211/flyrank-ml-internship
+
+Reference starter:
+https://github.com/flyrank-bih/flyrank-ml-internship-starter
+
+## 8. Acknowledgments & Data Credit
+
+Built on the **FlyRank ML Internship dataset**.
+
+Data source: https://flyrank.ai/
+
+The project follows the public-safety rules supplied with the internship starter repository and does not publish client names, domains, URLs, private queries, credentials, or raw private warehouse exports.
+
+## 9. Conclusion
+
+A useful search-intelligence model does not need to claim that it has decoded Google. Its job is smaller and more practical: turn a large set of content items into a defensible review queue.
+
+On the documented starter reference pipeline, the random-forest model substantially improves Precision@50 over the transparent baseline. The appropriate next step is operational validation: run the same leakage-aware contract on the authorized internship warehouse, inspect the top-ranked items, and measure whether human reviewers find the recommendations useful.
+
+</body></html>
